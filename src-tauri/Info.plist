@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- 右键菜单「服务」：选中文字 → 用 Fluent 翻译（见 src/mac_services.rs） -->
+  <key>NSServices</key>
+  <array>
+    <dict>
+      <key>NSMenuItem</key>
+      <dict>
+        <key>default</key>
+        <string>用 Fluent 翻译</string>
+      </dict>
+      <key>NSMessage</key>
+      <string>translate</string>
+      <key>NSPortName</key>
+      <string>Fluent</string>
+      <key>NSSendTypes</key>
+      <array>
+        <string>public.utf8-plain-text</string>
+        <string>NSStringPboardType</string>
+      </array>
+      <!-- 有 NSRequiredContext 的服务默认启用，直接出现在右键菜单里 -->
+      <key>NSRequiredContext</key>
+      <dict/>
+    </dict>
+  </array>
+</dict>
+</plist>

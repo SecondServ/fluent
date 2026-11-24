@@ -3,7 +3,10 @@
 //! 平台层（mac_select / win_select）只负责：装全局鼠标钩子、把鼠标事件喂给 [`on_mouse`]、
 //! 按 [`Backend`] 的要求显示 / 隐藏按钮窗口。这里决定「刚才是不是在选文字」「点没点中按钮」。
 //!
-//! 硬约束：这里**只看鼠标坐标和按键，不读取任何文字**；用户点了按钮才去取选中的内容。
+//! 只有「按下鼠标时光标是 I 形（文字光标）」的拖选 / 双击才冒按钮：在桌面、窗口标题栏、
+//! 图片上拖动不算选文字。
+//!
+//! 硬约束：这里**只看鼠标坐标、按键和光标形状，不读取任何文字**；用户点了按钮才去取选中的内容。
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
@@ -57,7 +60,8 @@ pub fn below_cursor(cursor: Pt, w: f64, h: f64, scale: f64) -> Rect {
 }
 
 pub enum Mouse {
-    LeftDown(Pt),
+    /// `on_text`：按下时光标是不是 I 形文字光标（平台层判断）。
+    LeftDown { pt: Pt, on_text: bool },
     /// `clicks`：系统给的连击次数（mac 有；Windows 没有，传 None 时按时间和距离自己判断）。
     LeftUp { pt: Pt, clicks: Option<i64> },
     /// 右键 / 中键按下、滚轮：收起按钮。
@@ -79,6 +83,8 @@ enum Action {
 
 struct Detector {
     down: Option<Pt>,
+    /// 最近一次按下是不是在文字上。
+    down_on_text: bool,
     last_up: Option<(Pt, Instant)>,
     bubble: Option<Rect>,
     swallow_up: bool,
@@ -87,12 +93,13 @@ struct Detector {
 
 impl Detector {
     const fn new() -> Self {
-        Self { down: None, last_up: None, bubble: None, swallow_up: false, hovering: false }
+        Self { down: None, down_on_text: false, last_up: None, bubble: None, swallow_up: false, hovering: false }
     }
 
     fn handle(&mut self, ev: Mouse, now: Instant, cfg: &Config, ours: impl FnOnce() -> bool) -> Action {
         match ev {
-            Mouse::LeftDown(p) => {
+            Mouse::LeftDown { pt: p, on_text } => {
+                self.down_on_text = on_text;
                 if let Some(r) = self.bubble.take() {
                     if r.contains(p) {
                         self.swallow_up = true;
@@ -119,7 +126,7 @@ impl Detector {
                 };
                 self.down = None;
                 self.last_up = Some((pt, now));
-                if (dragged || double) && !ours() { Action::Show(pt) } else { Action::Pass }
+                if (dragged || double) && self.down_on_text && !ours() { Action::Show(pt) } else { Action::Pass }
             }
             Mouse::Other => {
                 if self.bubble.take().is_some() { Action::Hide } else { Action::Pass }
@@ -226,6 +233,9 @@ mod tests {
     fn p(x: f64, y: f64) -> Pt {
         Pt { x, y }
     }
+    fn down(pt: Pt) -> Mouse {
+        Mouse::LeftDown { pt, on_text: true }
+    }
     fn up(d: &mut Detector, pt: Pt, t: Instant) -> Action {
         d.handle(Mouse::LeftUp { pt, clicks: None }, t, &CFG, || false)
     }
@@ -241,7 +251,7 @@ mod tests {
         let t = Instant::now();
         let mut d = Detector::new();
         d.bubble = Some(r);
-        assert_eq!(d.handle(Mouse::LeftDown(p(320.0, 10.0)), t, &CFG, || false), Action::Click(4));
+        assert_eq!(d.handle(down(p(320.0, 10.0)), t, &CFG, || false), Action::Click(4));
     }
 
     #[test]
@@ -269,9 +279,9 @@ mod tests {
     fn drag_shows_click_does_not() {
         let t = Instant::now();
         let mut d = Detector::new();
-        d.handle(Mouse::LeftDown(p(0.0, 0.0)), t, &CFG, || false);
+        d.handle(down(p(0.0, 0.0)), t, &CFG, || false);
         assert_eq!(up(&mut d, p(2.0, 0.0), t), Action::Pass);
-        d.handle(Mouse::LeftDown(p(500.0, 0.0)), t + Duration::from_secs(2), &CFG, || false);
+        d.handle(down(p(500.0, 0.0)), t + Duration::from_secs(2), &CFG, || false);
         assert_eq!(up(&mut d, p(600.0, 0.0), t + Duration::from_secs(2)), Action::Show(p(600.0, 0.0)));
     }
 
@@ -279,22 +289,33 @@ mod tests {
     fn double_click_by_timing_or_count() {
         let t = Instant::now();
         let mut d = Detector::new();
-        d.handle(Mouse::LeftDown(p(0.0, 0.0)), t, &CFG, || false);
+        d.handle(down(p(0.0, 0.0)), t, &CFG, || false);
         up(&mut d, p(0.0, 0.0), t);
-        d.handle(Mouse::LeftDown(p(1.0, 0.0)), t, &CFG, || false);
+        d.handle(down(p(1.0, 0.0)), t, &CFG, || false);
         assert_eq!(up(&mut d, p(1.0, 0.0), t + Duration::from_millis(200)), Action::Show(p(1.0, 0.0)));
 
         let mut d = Detector::new();
-        d.handle(Mouse::LeftDown(p(0.0, 0.0)), t, &CFG, || false);
+        d.handle(down(p(0.0, 0.0)), t, &CFG, || false);
         let a = d.handle(Mouse::LeftUp { pt: p(0.0, 0.0), clicks: Some(2) }, t, &CFG, || false);
         assert_eq!(a, Action::Show(p(0.0, 0.0)));
+    }
+
+    #[test]
+    fn drag_not_starting_on_text_is_ignored() {
+        let t = Instant::now();
+        let mut d = Detector::new();
+        d.handle(Mouse::LeftDown { pt: p(0.0, 0.0), on_text: false }, t, &CFG, || false);
+        assert_eq!(up(&mut d, p(300.0, 0.0), t), Action::Pass);
+        d.handle(Mouse::LeftDown { pt: p(0.0, 0.0), on_text: false }, t, &CFG, || false);
+        let a = d.handle(Mouse::LeftUp { pt: p(0.0, 0.0), clicks: Some(2) }, t, &CFG, || false);
+        assert_eq!(a, Action::Pass);
     }
 
     #[test]
     fn not_over_our_own_windows() {
         let t = Instant::now();
         let mut d = Detector::new();
-        d.handle(Mouse::LeftDown(p(0.0, 0.0)), t, &CFG, || false);
+        d.handle(down(p(0.0, 0.0)), t, &CFG, || false);
         let a = d.handle(Mouse::LeftUp { pt: p(100.0, 0.0), clicks: None }, t, &CFG, || true);
         assert_eq!(a, Action::Pass);
     }
@@ -304,12 +325,12 @@ mod tests {
         let t = Instant::now();
         let mut d = Detector::new();
         d.bubble = Some(Rect { x: 10.0, y: 10.0, w: 32.0, h: 32.0 });
-        assert_eq!(d.handle(Mouse::LeftDown(p(20.0, 20.0)), t, &CFG, || false), Action::Click(1));
+        assert_eq!(d.handle(down(p(20.0, 20.0)), t, &CFG, || false), Action::Click(1));
         assert_eq!(up(&mut d, p(20.0, 20.0), t), Action::Swallow);
         assert!(d.bubble.is_none());
 
         d.bubble = Some(Rect { x: 10.0, y: 10.0, w: 32.0, h: 32.0 });
-        assert_eq!(d.handle(Mouse::LeftDown(p(200.0, 200.0)), t, &CFG, || false), Action::Hide);
+        assert_eq!(d.handle(down(p(200.0, 200.0)), t, &CFG, || false), Action::Hide);
         d.bubble = Some(Rect { x: 10.0, y: 10.0, w: 32.0, h: 32.0 });
         assert_eq!(d.handle(Mouse::Other, t, &CFG, || false), Action::Hide);
     }

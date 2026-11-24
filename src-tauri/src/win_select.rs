@@ -74,12 +74,25 @@ impl Backend for Win {
     }
 }
 
+/// 按下鼠标这一刻，系统光标是不是 I 形文字光标。只看光标形状，不读文字。
+/// 系统光标是共享句柄，各程序 LoadCursor(IDC_IBEAM) 拿到的是同一个。
+fn cursor_on_text() -> bool {
+    unsafe {
+        let mut ci: CURSORINFO = std::mem::zeroed();
+        ci.cbSize = std::mem::size_of::<CURSORINFO>() as u32;
+        if GetCursorInfo(&mut ci) == 0 {
+            return true; // 拿不到就退回到「拖动就冒按钮」
+        }
+        ci.hCursor == LoadCursorW(null_mut(), IDC_IBEAM)
+    }
+}
+
 unsafe extern "system" fn mouse_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     if code == HC_ACTION as i32 {
         let p = unsafe { (*(lparam as *const MSLLHOOKSTRUCT)).pt };
         let pt = Pt { x: p.x as f64, y: p.y as f64 };
         let ev = match wparam as u32 {
-            WM_LBUTTONDOWN => Some(Mouse::LeftDown(pt)),
+            WM_LBUTTONDOWN => Some(Mouse::LeftDown { pt, on_text: cursor_on_text() }),
             WM_LBUTTONUP => Some(Mouse::LeftUp { pt, clicks: None }),
             WM_RBUTTONDOWN | WM_MBUTTONDOWN | WM_MOUSEWHEEL => Some(Mouse::Other),
             WM_MOUSEMOVE => Some(Mouse::Move(pt)),

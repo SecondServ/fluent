@@ -64,13 +64,45 @@ pub fn send_cmd(key: core_graphics::event::CGKeyCode) -> Result<(), String> {
     Ok(())
 }
 
+/// 光标的「指纹」：热点位置 + 图片尺寸（点）。
+type Shape = (f64, f64, f64, f64);
+
+fn shape(c: &objc2_app_kit::NSCursor) -> Shape {
+    let (h, s) = (c.hotSpot(), c.image().size());
+    (h.x, h.y, s.width, s.height)
+}
+
+/// 两个光标形状一样（允许整体按比例放大：辅助功能里调大了光标）。
+fn same_shape(a: Shape, b: Shape) -> bool {
+    if b.2 <= 0.0 || b.3 <= 0.0 {
+        return false;
+    }
+    let k = a.2 / b.2;
+    let close = |x: f64, y: f64| (x - y * k).abs() <= 0.5 * k.max(1.0);
+    k > 0.0 && close(a.0, b.0) && close(a.1, b.1) && close(a.3, b.3)
+}
+
+/// 按下鼠标这一刻，系统光标是不是 I 形文字光标（任何程序里都一样）。
+/// 只看光标形状，不读文字。万一系统不再提供这个信息，就当作是（退回到「拖动就冒按钮」）。
+fn cursor_on_text() -> bool {
+    use objc2_app_kit::NSCursor;
+    static IBEAMS: std::sync::OnceLock<[Shape; 2]> = std::sync::OnceLock::new();
+    #[allow(deprecated)]
+    let Some(current) = NSCursor::currentSystemCursor() else { return true };
+    let ibeams = IBEAMS.get_or_init(|| {
+        [shape(&NSCursor::IBeamCursor()), shape(&NSCursor::IBeamCursorForVerticalLayout())]
+    });
+    let cur = shape(&current);
+    ibeams.iter().any(|&b| same_shape(cur, b))
+}
+
 static TAP_PORT: AtomicPtr<std::ffi::c_void> = AtomicPtr::new(std::ptr::null_mut());
 
 fn tap_callback(etype: CGEventType, event: &CGEvent) -> CallbackResult {
     let loc = event.location();
     let pt = Pt { x: loc.x, y: loc.y };
     let ev = match etype {
-        CGEventType::LeftMouseDown => Mouse::LeftDown(pt),
+        CGEventType::LeftMouseDown => Mouse::LeftDown { pt, on_text: cursor_on_text() },
         CGEventType::LeftMouseUp => Mouse::LeftUp {
             pt,
             clicks: Some(event.get_integer_value_field(EventField::MOUSE_EVENT_CLICK_STATE)),
@@ -125,4 +157,18 @@ pub fn start() {
         tap.enable();
         CFRunLoop::run_current();
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::same_shape;
+
+    #[test]
+    fn ibeam_shape_matching() {
+        let ibeam = (12.0, 11.0, 23.0, 22.0);
+        assert!(same_shape(ibeam, ibeam));
+        assert!(same_shape((24.0, 22.0, 46.0, 44.0), ibeam)); // 放大两倍的光标
+        assert!(!same_shape((5.0, 5.0, 28.0, 40.0), ibeam)); // 箭头
+        assert!(!same_shape((11.0, 11.0, 24.0, 24.0), ibeam)); // 十字
+    }
 }

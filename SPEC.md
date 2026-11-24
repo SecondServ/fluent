@@ -92,7 +92,7 @@
 - **按钮不抢焦点**：mac 用 `orderFrontRegardless` 显示、Windows 设 `WS_EX_NOACTIVATE`；点击由钩子直接吞掉，原程序保持前台和选区，随后的 Ctrl+C 才会发到原程序。
 - **焦点问题（最大技术风险）**：面板弹出时不能让原 App 丢失选区或焦点，否则「替换原文」会粘错地方。M0 里就先验证；替换前记住原前台窗口，粘贴前把它切回来。
 
-**AI 模型**：沿用「担当」的多厂商结构：Gemini（推荐、付费 Key）/ OpenAI / Claude，设置里选一家并填 Key。F1、F2、F5 走快档模型，F3、F4 走强档模型（写作质量更重要）。
+**AI 模型**：沿用「担当」的多厂商结构：Gemini（推荐、付费 Key）/ OpenAI / Claude，设置里选一家并填 Key。所有功能共用一个快模型（如 gemini-2.5-flash，关闭思考），速度优先。
 
 ---
 
@@ -175,7 +175,7 @@ Give the IPA (US and UK) for the word or short phrase below, plus one tip in Sim
 
 ## 8. 验证清单
 
-- [ ] 点菜单项 / 按钮到面板出现 < 300ms；首字流式出现 < 1.5s（快档模型）。
+- [ ] 点菜单项 / 按钮到面板出现 < 300ms；首字流式出现 < 1.5s。
 - [ ] Outlook、Chrome、Slack、Word、微信/飞书都能取到选中文字（mac 和 Windows 都测）。
 - [ ] （Windows）取文字后原剪贴板被还原；什么都没选时提示「没选中文字」，不会把旧剪贴板内容发出去。
 - [ ] 「替换原文」粘贴到正确的窗口和位置。

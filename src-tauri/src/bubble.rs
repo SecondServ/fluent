@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 
 /// 长条按钮的尺寸（逻辑像素）：五个功能等宽排开。
 pub const WIDTH: f64 = 230.0;
-pub const HEIGHT: f64 = 30.0;
+pub const HEIGHT: f64 = 24.0;
 /// 长条上的功能数，顺序和前端 Bubble.tsx 一致：翻译 / 总结 / 改写 / 回复 / 朗读。
 pub const SEGMENTS: usize = 5;
 /// 按钮顶边离光标的距离（逻辑像素）：选字时光标是 I 形，热点在中间，下半截约 8~9 像素。

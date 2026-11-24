@@ -138,22 +138,13 @@ export default function SettingsPage() {
           </label>
         )}
 
-        <div className="grid2">
-          <label className="field">
-            <span>快档模型（翻译、总结）</span>
-            <input
-              value={models.fast}
-              onChange={(e) => update({ ...settings, [provider]: { ...models, fast: e.target.value } })}
-            />
-          </label>
-          <label className="field">
-            <span>强档模型（改写、回复）</span>
-            <input
-              value={models.strong}
-              onChange={(e) => update({ ...settings, [provider]: { ...models, strong: e.target.value } })}
-            />
-          </label>
-        </div>
+        <label className="field">
+          <span>模型（所有功能共用，选快的）</span>
+          <input
+            value={models.model}
+            onChange={(e) => update({ ...settings, [provider]: { model: e.target.value } })}
+          />
+        </label>
       </section>
 
       <section>

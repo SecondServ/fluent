@@ -300,7 +300,7 @@ body[data-view="bubble"] {
   overflow: hidden;
   background: var(--accent);
   color: var(--accent-fg);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   user-select: none;
   cursor: default;

@@ -76,16 +76,9 @@ pub struct Request {
     pub stance: Option<Stance>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Tier {
-    Fast,
-    Strong,
-}
-
 pub struct Prompt {
     pub system: &'static str,
     pub user: String,
-    pub tier: Tier,
     pub temperature: f32,
 }
 
@@ -94,7 +87,7 @@ pub const EXPLAIN_SEPARATOR: &str = "---";
 
 pub fn build(r: &Request) -> Prompt {
     let text = &r.text;
-    let (user, tier, temperature) = match r.feature {
+    let (user, temperature) = match r.feature {
         Feature::Translate => (
             format!(
                 "Translate the text below.\n\
@@ -103,7 +96,6 @@ pub fn build(r: &Request) -> Prompt {
                  - For workplace jargon or acronyms (e.g. EOD, OOO, circle back), add a short Chinese explanation in parentheses the first time they appear.\n\
                  Text:\n{text}"
             ),
-            Tier::Fast,
             0.2,
         ),
         Feature::Summarize => (
@@ -117,7 +109,6 @@ pub fn build(r: &Request) -> Prompt {
                  Do not invent anything not in the message.\n\
                  Message:\n{text}"
             ),
-            Tier::Fast,
             0.2,
         ),
         Feature::Rewrite => {
@@ -138,7 +129,6 @@ pub fn build(r: &Request) -> Prompt {
                      Draft:\n{text}",
                     r.tone.en()
                 ),
-                Tier::Strong,
                 0.4,
             )
         }
@@ -157,7 +147,6 @@ pub fn build(r: &Request) -> Prompt {
                      Message:\n{text}",
                     r.tone.en()
                 ),
-                Tier::Strong,
                 0.5,
             )
         }
@@ -165,11 +154,10 @@ pub fn build(r: &Request) -> Prompt {
             format!(
                 "Give the IPA (US and UK) for the word or short phrase below, plus one tip in Simplified Chinese on how to pronounce it. Format: \"US /…/  UK /…/\\n<tip>\"\n{text}"
             ),
-            Tier::Fast,
             0.0,
         ),
     };
-    Prompt { system: SYSTEM, user, tier, temperature }
+    Prompt { system: SYSTEM, user, temperature }
 }
 
 #[cfg(test)]
@@ -181,11 +169,10 @@ mod tests {
     }
 
     #[test]
-    fn translate_embeds_text_and_uses_fast_tier() {
+    fn translate_embeds_text() {
         let p = build(&req(r#"{"feature":"translate","text":"Please circle back by EOD."}"#));
         assert!(p.user.ends_with("Text:\nPlease circle back by EOD."));
         assert!(p.user.contains("Simplified Chinese"));
-        assert_eq!(p.tier, Tier::Fast);
         assert_eq!(p.system, SYSTEM);
     }
 
@@ -193,7 +180,6 @@ mod tests {
     fn summarize_has_fixed_format() {
         let p = build(&req(r#"{"feature":"summarize","text":"x"}"#));
         assert!(p.user.contains("一句话：") && p.user.contains("要我做的："));
-        assert_eq!(p.tier, Tier::Fast);
     }
 
     #[test]
@@ -201,7 +187,6 @@ mod tests {
         let p = build(&req(r#"{"feature":"rewrite","text":"pls check","tone":"friendly","explain":true}"#));
         assert!(p.user.contains("Tone: friendly"));
         assert!(p.user.contains("\"---\""));
-        assert_eq!(p.tier, Tier::Strong);
         let p = build(&req(r#"{"feature":"rewrite","text":"pls check"}"#));
         assert!(p.user.contains("Tone: formal"));
         assert!(!p.user.contains("\"---\""));

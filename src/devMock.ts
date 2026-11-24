@@ -12,9 +12,9 @@ const callbacks = new Map<number, (data: unknown) => void>();
 const handlers: Record<string, (args: any) => unknown> = {
   get_settings: () => ({
     provider: "gemini",
-    gemini: { fast: "gemini-2.5-flash", strong: "gemini-2.5-pro" },
-    openai: { fast: "gpt-4o-mini", strong: "gpt-4o" },
-    anthropic: { fast: "claude-haiku-5-5", strong: "claude-sonnet-5-5" },
+    gemini: { model: "gemini-2.5-flash" },
+    openai: { model: "gpt-4o-mini" },
+    anthropic: { model: "claude-haiku-5-5" },
     openai_base_url: "https://api.openai.com/v1",
     tts: {
       engine: "system", cloud: "openai", openai_model: "gpt-4o-mini-tts", openai_voice: "alloy",

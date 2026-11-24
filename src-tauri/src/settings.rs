@@ -25,8 +25,9 @@ impl Provider {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Models {
-    pub fast: String,
-    pub strong: String,
+    /// 所有功能共用一个模型（求快）。旧配置里叫 fast，另有一个已不用的 strong 字段，读取时忽略。
+    #[serde(alias = "fast")]
+    pub model: String,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -90,9 +91,9 @@ impl Default for Settings {
     fn default() -> Self {
         Settings {
             provider: Provider::Gemini,
-            gemini: Models { fast: "gemini-2.5-flash".into(), strong: "gemini-2.5-pro".into() },
-            openai: Models { fast: "gpt-4o-mini".into(), strong: "gpt-4o".into() },
-            anthropic: Models { fast: "claude-haiku-5-5".into(), strong: "claude-sonnet-5-5".into() },
+            gemini: Models { model: "gemini-2.5-flash".into() },
+            openai: Models { model: "gpt-4o-mini".into() },
+            anthropic: Models { model: "claude-haiku-5-5".into() },
             openai_base_url: "https://api.openai.com/v1".into(),
             tts: Tts::default(),
         }
@@ -147,4 +148,15 @@ pub fn set_key(p: Provider, key: &str) -> Result<(), String> {
         };
     }
     e.set_password(key.trim()).map_err(|err| format!("保存 Key 失败：{err}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn old_two_tier_settings_still_load() {
+        let m: Models = serde_json::from_str(r#"{"fast":"gemini-2.5-flash","strong":"gemini-2.5-pro"}"#).unwrap();
+        assert_eq!(m.model, "gemini-2.5-flash");
+    }
 }

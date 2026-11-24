@@ -29,8 +29,7 @@ export interface Tts {
 }
 
 export interface Models {
-  fast: string;
-  strong: string;
+  model: string;
 }
 
 export interface Settings {

@@ -1,6 +1,6 @@
 //! 三家大模型的流式调用（SSE）。Key 只在这里使用，不进 WebView，不写日志。
 
-use crate::prompts::{Prompt, Tier};
+use crate::prompts::Prompt;
 use crate::settings::{Provider, Settings};
 use futures_util::StreamExt;
 use serde_json::{Value, json};
@@ -87,11 +87,7 @@ fn build_request(
     p: &Prompt,
     gemini_thinking_off: bool,
 ) -> reqwest::RequestBuilder {
-    let models = settings.models();
-    let model = match p.tier {
-        Tier::Fast => &models.fast,
-        Tier::Strong => &models.strong,
-    };
+    let model = &settings.models().model;
     match settings.provider {
         Provider::Gemini => {
             let mut gen_cfg = json!({ "temperature": p.temperature });

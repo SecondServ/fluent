@@ -36,9 +36,9 @@ impl Backend for Win {
         let (w, h) = ((bubble::WIDTH * scale).round(), (bubble::HEIGHT * scale).round());
         let r = bubble::below_cursor(cursor, w, h, scale);
         unsafe {
-            let h = self.bubble as HWND;
+            let hwnd = self.bubble as HWND;
             SetWindowPos(
-                h,
+                hwnd,
                 HWND_TOPMOST,
                 r.x.round() as i32,
                 r.y.round() as i32,
@@ -46,7 +46,7 @@ impl Backend for Win {
                 h as i32,
                 SWP_NOACTIVATE | SWP_SHOWWINDOW,
             );
-            ShowWindow(h, SW_SHOWNOACTIVATE);
+            ShowWindow(hwnd, SW_SHOWNOACTIVATE);
         }
         r
     }

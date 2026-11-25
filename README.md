@@ -50,3 +50,5 @@ cargo test --manifest-path src-tauri/Cargo.toml
 只调界面时，可以单独跑 `npx vite`，然后在浏览器打开 `http://localhost:1420/#panel` 或 `#settings`。这时会自动加载假后端 `src/devMock.ts`。
 
 **Windows**：GitHub Actions（`.github/workflows/build.yml`）会在 mac 和 Windows 上各打一次包，产物在 Actions 的 Artifacts 里下载（`.msi` / `.exe` / `.dmg`）。安装包未签名，Windows 会提示「未知发布者」，点「仍要运行」即可。
+
+**在别的 Mac 上装 CI 打的 `.dmg`**：dmg 同时支持 Apple 芯片和 Intel，但只做了 ad-hoc 签名（没有苹果开发者证书、没有公证）。拖进「应用程序」后第一次打开会被拦，到 系统设置 → 隐私与安全性 底部点「仍要打开」。如果提示「已损坏」，在终端运行 `xattr -cr /Applications/Fluent.app` 再打开。每次更新版本后，辅助功能权限可能要在系统设置里关掉再打开一次。
